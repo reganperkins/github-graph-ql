@@ -1,12 +1,21 @@
+import axios from 'axios';
 import type { NextPage } from 'next'
 import Head from 'next/head'
-import Image from 'next/image'
+import {useState} from 'react'
 import styles from '../styles/Home.module.css'
 
 
 const TITLE = 'React GraphQL GitHub Client';
 
 const Home: NextPage = () => {
+  const [path, setPath] = useState('');
+
+  const inputUpdated = (e: React.ChangeEvent<HTMLInputElement>) => setPath(e.currentTarget.value);
+  const submitForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    // axios();
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -16,6 +25,22 @@ const Home: NextPage = () => {
 
       <main>
         <h1>{TITLE}</h1>
+
+        <form onSubmit={submitForm}>
+          <label htmlFor="url">
+            Show open issues for https://github.com/
+          </label>
+          <input
+            id="url"
+            type="text"
+            value={path}
+            onChange={inputUpdated}
+            autoFocus
+          />
+          <button type="submit">Submit</button>
+        </form>
+
+        <hr />
       </main>
     </div>
   )

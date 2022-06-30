@@ -1,21 +1,51 @@
-import axios from 'axios';
 import type { NextPage } from 'next'
+import axios from 'axios';
 import Head from 'next/head'
-import {useState} from 'react'
+import Organization from '../modules/home/components/organization'
+import {useState, useEffect} from 'react'
 import styles from '../styles/Home.module.css'
 
-
+const axiosGitHubGraphQL = axios.create({
+  baseURL: 'https://api.github.com/graphql',
+  headers: {
+    Authorization: `bearer ${
+      process.env.NEXT_PUBLIC_GITHUB_PERSONAL_ACCESS_TOKEN
+    }`,
+  },
+});
 const TITLE = 'React GraphQL GitHub Client';
+const GET_ORGANIZATION = `
+  {
+    organization(login: "the-road-to-learn-react") {
+      name
+      url
+    }
+  }
+`;
 
 const Home: NextPage = () => {
-  const [path, setPath] = useState('');
+  const [path, setPath] = useState('the-road-to-learn-react/the-road-to-learn-react');
+  const [organization, setOrganization] = useState();
+  const [error, setError] = useState();
+  const fetchDataFromGithub = () => {
+    axiosGitHubGraphQL
+      .post('', { query: GET_ORGANIZATION })
+      .then(result => {
+        setOrganization(result.data.data.organization);
+        setError(result.data.errors);
+      });
+  }
+
+  useEffect(() => {
+   fetchDataFromGithub();
+  }, []);
 
   const inputUpdated = (e: React.ChangeEvent<HTMLInputElement>) => setPath(e.currentTarget.value);
   const submitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    // axios();
+    fetchDataFromGithub();
   };
-
+  
   return (
     <div className={styles.container}>
       <Head>
@@ -25,7 +55,6 @@ const Home: NextPage = () => {
 
       <main>
         <h1>{TITLE}</h1>
-
         <form onSubmit={submitForm}>
           <label htmlFor="url">
             Show open issues for https://github.com/
@@ -41,6 +70,10 @@ const Home: NextPage = () => {
         </form>
 
         <hr />
+        { organization
+          ? <Organization organization={organization} />
+          : <p>{JSON.stringify(error)}</p>
+        } 
       </main>
     </div>
   )

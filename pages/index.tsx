@@ -26,13 +26,13 @@ const GET_ORGANIZATION = `
 const Home: NextPage = () => {
   const [path, setPath] = useState('the-road-to-learn-react/the-road-to-learn-react');
   const [organization, setOrganization] = useState();
-  const [error, setError] = useState();
+  const [errors, setErrors] = useState();
   const fetchDataFromGithub = () => {
     axiosGitHubGraphQL
       .post('', { query: GET_ORGANIZATION })
       .then(result => {
         setOrganization(result.data.data.organization);
-        setError(result.data.errors);
+        setErrors(result.data.errors);
       });
   }
 
@@ -71,8 +71,8 @@ const Home: NextPage = () => {
 
         <hr />
         { organization
-          ? <Organization organization={organization} />
-          : <p>{JSON.stringify(error)}</p>
+          ? <Organization organization={organization} errors={errors} />
+          : <p>No information yet ...</p>
         } 
       </main>
     </div>

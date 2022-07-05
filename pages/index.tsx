@@ -14,36 +14,107 @@ const axiosGitHubGraphQL = axios.create({
   },
 });
 const TITLE = 'React GraphQL GitHub Client';
-const GET_ORGANIZATION = `
-  {
-    organization(login: "the-road-to-learn-react") {
+
+const GET_ISSUES_OF_REPOSITORY = `
+  query ($organization: String!, $repository: String!, $cursor: String) {
+    organization(login: $organization) {
       name
       url
+      repository(name: $repository) {
+        name
+        url
+        issues(first: 5, after: $cursor, states: [OPEN]) {
+          edges {
+            node {
+              id
+              title
+              url
+              reactions(first: 3) {
+                edges {
+                  node {
+                    id
+                    content
+                  }
+                }
+                totalCount
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          }
+          totalCount
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
     }
   }
 `;
 
+interface initialErrorProps {
+  message: string;
+}
+
 const Home: NextPage = () => {
   const [path, setPath] = useState('the-road-to-learn-react/the-road-to-learn-react');
   const [organization, setOrganization] = useState();
-  const [errors, setErrors] = useState();
-  const fetchDataFromGithub = () => {
+  const [errors, setErrors] = useState<initialErrorProps[] | undefined>();
+
+  const getIssuesOfRepository = (cursor?: string) => {
+    const [org, repo] = path.split('/');
     axiosGitHubGraphQL
-      .post('', { query: GET_ORGANIZATION })
-      .then(result => {
-        setOrganization(result.data.data.organization);
-        setErrors(result.data.errors);
+      .post('', {
+        query: GET_ISSUES_OF_REPOSITORY,
+        variables: {
+          organization: org,
+          repository: repo,
+          cursor
+        },
+      })
+      .then((queryResult) => resolveIssuesQuery(queryResult, cursor));
+  }
+
+  const resolveIssuesQuery = (queryResult, cursor?: string) => {
+    const { data, errors } = queryResult.data;
+
+    if (!cursor) {
+      setOrganization(data.organization);
+    } else if (organization) {
+      const { edges: oldIssues } = organization.repository.issues;
+      const { edges: newIssues } = data.organization.repository.issues;
+      setOrganization({
+        ...data.organization,
+        repository: {
+          ...data.organization.repository,
+          issues: {
+            ...data.organization.repository.issues,
+            edges: [...oldIssues, ...newIssues],
+          },
+        },
       });
+    }
+    setErrors(errors);
+  }
+
+  const onFetchMoreIssues = () => {
+    if (organization) {
+      const {endCursor} = organization.repository.issues.pageInfo;
+      getIssuesOfRepository(endCursor);
+    }
   }
 
   useEffect(() => {
-   fetchDataFromGithub();
+   getIssuesOfRepository();
   }, []);
 
   const inputUpdated = (e: React.ChangeEvent<HTMLInputElement>) => setPath(e.currentTarget.value);
   const submitForm = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchDataFromGithub();
+    getIssuesOfRepository();
   };
   
   return (
@@ -70,10 +141,16 @@ const Home: NextPage = () => {
         </form>
 
         <hr />
-        { organization
-          ? <Organization organization={organization} errors={errors} />
+        { errors ?
+          <p>
+            <strong>Something went wrong:</strong>
+            {errors.map(error => error.message).join(' ')}
+          </p>
+        : (organization
+          ? <Organization organization={organization} onFetchMoreIssues={onFetchMoreIssues} />
           : <p>No information yet ...</p>
-        } 
+        )
+      } 
       </main>
     </div>
   )

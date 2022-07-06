@@ -1,45 +1,15 @@
+import { OrganizationInterface } from '../interface'
 import Link from 'next/link'
 import Repository from './repository'
 
-interface OrganizationProps {
-  organization: {
-    name: string;
-    url: string;
-    repository: {
-      name: string;
-      url: string;
-      issues: {
-        edges: [
-          {
-            node: {
-              id: string;
-              title: string;
-              url: string;
-              reactions: {
-                edges: [
-                  {
-                    node: {
-                      id: string;
-                      content: string;
-                    }
-                  }
-                ];
-                totalCount: number;
-                pageInfo: {
-                  endCursor: string;
-                  hasNextPage: boolean;
-                };
-              }
-            }
-          }
-        ]
-      }
-    }
-  };
-  onFetchMoreIssues: React.MouseEventHandler<HTMLButtonElement>;
+interface Props {
+  organization: OrganizationInterface;
+  onFetchMoreIssues: (event: React.MouseEvent<HTMLElement>) => void;
+  onStarRepository: (id: string, viewerHasStarred: boolean) => void;
+  onFetchMoreReactions: (issueNumber: number, cursor: string) => void;
 }
 
-const Organization = ({ organization, onFetchMoreIssues }: OrganizationProps) => {
+const Organization = ({ organization, onFetchMoreIssues, onStarRepository, onFetchMoreReactions }: Props) => {
   return (
     <div>
       <p>
@@ -48,7 +18,12 @@ const Organization = ({ organization, onFetchMoreIssues }: OrganizationProps) =>
           <a>{organization.name}</a>
         </Link>
       </p>
-      <Repository repository={organization.repository} onFetchMoreIssues={onFetchMoreIssues} />
+      <Repository
+        repository={organization.repository}
+        onFetchMoreIssues={onFetchMoreIssues}
+        onStarRepository={onStarRepository}
+        onFetchMoreReactions={onFetchMoreReactions}
+      />
     </div>
   )
 }

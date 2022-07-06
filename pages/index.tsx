@@ -21,14 +21,17 @@ const GET_ISSUES_OF_REPOSITORY = `
       name
       url
       repository(name: $repository) {
+        id
         name
         url
+        viewerHasStarred
         issues(first: 5, after: $cursor, states: [OPEN]) {
           edges {
             node {
               id
               title
               url
+              number
               reactions(first: 3) {
                 edges {
                   node {
@@ -54,6 +57,38 @@ const GET_ISSUES_OF_REPOSITORY = `
     }
   }
 `;
+
+const GET_MORE_REACTIONS = `
+  query($organization: String!, $repository: String!, $issueNumber: Int!, $cursor: String!) {
+    repository(owner: $organization, name: $repository) {
+      issue(number: $issueNumber) {
+        reactions(first: 3, after: $cursor) {
+          edges {
+            node {
+              id
+              content
+            }
+          }
+          totalCount
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }
+  }
+`;
+
+const ADD_STAR = `
+  mutation ($id: ID!) {
+    addStar(input:{starrableId: $id}) {
+      starrable {
+        viewerHasStarred
+      }
+    }
+  }
+`
 
 interface initialErrorProps {
   message: string;
@@ -100,12 +135,94 @@ const Home: NextPage = () => {
     setErrors(errors);
   }
 
+  const resolveAddStarMutation = (mutationResult) => {
+    // if (!organization) return;
+    const {  viewerHasStarred } = mutationResult.data.data.addStar.starrable;
+    setOrganization({
+      ...organization,
+      repository: {
+        ...organization.repository,
+        viewerHasStarred,
+      }
+    });
+  }
+
   const onFetchMoreIssues = () => {
     if (organization) {
       const {endCursor} = organization.repository.issues.pageInfo;
       getIssuesOfRepository(endCursor);
     }
   }
+
+  const onFetchMoreReactions = (issueNumber: number, cursor: string) => {
+    const [org, repo] = path.split('/');
+    axiosGitHubGraphQL
+      .post('', {
+        query: GET_MORE_REACTIONS,
+        variables: {
+          organization: org,
+          repository: repo,
+          issueNumber,
+          cursor
+        },
+      })
+        .then((queryResult) => resolveReactionsQuery(queryResult, issueNumber))
+  }
+
+  const resolveReactionsQuery = (queryResult, issueNumber: number) => {
+    const { data, errors } = queryResult.data;
+    const updatedIssueEdges = organization.repository.issues.edges.map((edge) => {
+      if (edge.node.number === issueNumber) {
+        return {
+          ...edge,
+          ...{
+            node: {
+              ...edge.node,
+              reactions: {
+                ...edge.node.reactions,
+                edges: [...edge.node.reactions.edges, ...data.repository.issue.reactions.edges],
+                pageInfo: {
+                  ...data.repository.issue.reactions.pageInfo,
+                },
+                totalCount: data.repository.issue.reactions.totalCount
+              }
+            }
+          }
+        };
+      }
+      return edge;
+    })
+
+    console.log(updatedIssueEdges)
+    
+    setOrganization({
+      ...organization,
+      repository: {
+        ...organization.repository,
+        issues: {
+          ...organization.repository.issues,
+          edges: updatedIssueEdges,
+        }
+      }
+    });
+    setErrors(errors);
+  }
+
+  const onStarRepository = (id: string, isStared: boolean) => {
+    if (isStared) {
+      // removeStar
+    } else {
+      addStarToRepository(id);
+    }
+  }
+
+  const addStarToRepository = (id: string) => {
+    return axiosGitHubGraphQL.post('', {
+      query: ADD_STAR,
+      variables: { id },
+    })
+      .then(resolveAddStarMutation);
+  };
 
   useEffect(() => {
    getIssuesOfRepository();
@@ -147,7 +264,12 @@ const Home: NextPage = () => {
             {errors.map(error => error.message).join(' ')}
           </p>
         : (organization
-          ? <Organization organization={organization} onFetchMoreIssues={onFetchMoreIssues} />
+          ? <Organization
+              organization={organization}
+              onFetchMoreIssues={onFetchMoreIssues}
+              onStarRepository={onStarRepository}
+              onFetchMoreReactions={onFetchMoreReactions}
+            />
           : <p>No information yet ...</p>
         )
       } 

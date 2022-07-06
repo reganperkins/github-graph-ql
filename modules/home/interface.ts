@@ -1,20 +1,45 @@
 /*{
-  repository: {
-    issues: {
-      edges: [ 
-        {
-          node: {
-            reactions: {
-              edges: [
-                node: {
-
+  organization: {
+    name
+    url
+    repository: {
+      id
+      name
+      url
+      stargazers {
+        totalCount
+      }
+      viewerHasStarred
+      issues: {
+        edges: [ 
+          {
+            node: {
+              id
+              title
+              url
+              number
+              reactions: {
+                edges: [
+                  node: {
+                    id
+                    content
+                  }
+                ]
+                totalCount
+                pageInfo {
+                  endCursor
+                  hasNextPage
                 }
-              ]
+              }
             }
           }
-          pageInfo
+        ]
+        totalCount
+        pageInfo {
+          endCursor
+          hasNextPage
         }
-      ]
+      }
     }
   }
 }*/
@@ -31,6 +56,9 @@ export interface RepositoryInterface {
     name: string;
     url: string;
     viewerHasStarred: boolean;
+    stargazers: {
+      totalCount: number;
+    };
     issues: IssuesInterface;
 }
 

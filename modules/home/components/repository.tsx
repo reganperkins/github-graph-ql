@@ -17,6 +17,7 @@ const Repository = ({ repository, onFetchMoreIssues, onStarRepository, onFetchMo
         type="button"
         onClick={() => onStarRepository(repository.id, repository.viewerHasStarred)}
       >
+        {repository.stargazers.totalCount}
         {repository.viewerHasStarred ? 'Unstar' : 'Star'}
       </button>
     </p>
@@ -27,7 +28,8 @@ const Repository = ({ repository, onFetchMoreIssues, onStarRepository, onFetchMo
     </ul>
     <hr />
     { repository.issues.pageInfo.hasNextPage
-      && <button onClick={onFetchMoreIssues}>More</button>}
+      && <button onClick={onFetchMoreIssues}>More</button>
+    }
 </div>
 );
 

@@ -25,6 +25,9 @@ const GET_ISSUES_OF_REPOSITORY = `
         name
         url
         viewerHasStarred
+        stargazers {
+          totalCount
+        }
         issues(first: 5, after: $cursor, states: [OPEN]) {
           edges {
             node {
@@ -80,6 +83,16 @@ const GET_MORE_REACTIONS = `
   }
 `;
 
+const REMOVE_STAR = `
+  mutation ($id: ID!) {
+    removeStar(input:{starrableId: $id}) {
+      starrable {
+        viewerHasStarred
+      }
+    }
+  }
+`;
+
 const ADD_STAR = `
   mutation ($id: ID!) {
     addStar(input:{starrableId: $id}) {
@@ -88,7 +101,7 @@ const ADD_STAR = `
       }
     }
   }
-`
+`;
 
 interface initialErrorProps {
   message: string;
@@ -133,18 +146,6 @@ const Home: NextPage = () => {
       });
     }
     setErrors(errors);
-  }
-
-  const resolveAddStarMutation = (mutationResult) => {
-    // if (!organization) return;
-    const {  viewerHasStarred } = mutationResult.data.data.addStar.starrable;
-    setOrganization({
-      ...organization,
-      repository: {
-        ...organization.repository,
-        viewerHasStarred,
-      }
-    });
   }
 
   const onFetchMoreIssues = () => {
@@ -192,8 +193,6 @@ const Home: NextPage = () => {
       }
       return edge;
     })
-
-    console.log(updatedIssueEdges)
     
     setOrganization({
       ...organization,
@@ -210,11 +209,50 @@ const Home: NextPage = () => {
 
   const onStarRepository = (id: string, isStared: boolean) => {
     if (isStared) {
-      // removeStar
+      removeStarToRepository(id);
     } else {
       addStarToRepository(id);
     }
-  }
+  };
+
+  const resolveRemoveStarMutation = (mutationResult) => {
+    const {  viewerHasStarred } = mutationResult.data.data.removeStar.starrable;
+    const { totalCount } = organization.repository.stargazers;
+    setOrganization({
+      ...organization,
+      repository: {
+        ...organization.repository,
+        viewerHasStarred,
+        stargazers: {
+          totalCount: totalCount - 1,
+        }
+      }
+    });
+  };
+
+  const removeStarToRepository = (id: string) => {
+    return axiosGitHubGraphQL.post('', {
+      query: REMOVE_STAR,
+      variables: { id },
+    })
+      .then(resolveRemoveStarMutation);
+  };
+
+  const resolveAddStarMutation = (mutationResult) => {
+    // if (!organization) return;
+    const {  viewerHasStarred } = mutationResult.data.data.addStar.starrable;
+    const { totalCount } = organization.repository.stargazers;
+    setOrganization({
+      ...organization,
+      repository: {
+        ...organization.repository,
+        viewerHasStarred,
+        stargazers: {
+          totalCount: totalCount + 1,
+        }
+      }
+    });
+  };
 
   const addStarToRepository = (id: string) => {
     return axiosGitHubGraphQL.post('', {
